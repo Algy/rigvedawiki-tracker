@@ -92,8 +92,9 @@ def puw():
     return jsonify(result=imd)
 
 
-@app.route("/rest/keywords/prefix/<prefix>", methods=["GET"])
-def kwds(prefix):
+@app.route("/rest/keywords", methods=["GET"])
+def kwds():
+    prefix = request.args["prefix"]
     return jsonify(result=recentchanges.query_prefix(g.redis, 
                                                      prefix, 
                                                      limit=10))

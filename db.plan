@@ -24,8 +24,7 @@ last_recentchange
 }
 
 -- Redis DB Schema --
-"rigveda-keywords": string set
-"rigveda-keyword-prefix": string sorted-set with all of rank of elements being zero
+"rigveda-keywords": string sorted-set
 "rigveda-recentchange-cache": Hash{
     gathered_at AS rank
     data IS  <article_name encoded in UTF-8> + "\n" + <recentchange JSON>
