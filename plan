@@ -1,0 +1,42 @@
+-- Push style --
+ * tickle(ping) style push message (GCM)
+
+-- RPC-STYLE WAS layer --
+
+def poll_downward(article: Nullable string, until: datetime, limit: ~ 20):
+    Output -
+    {
+        flooded: bool
+        empty: bool
+        result: list
+    }
+
+def poll_upward(article: Nullable string, from: datetime, limit: ~ 20):
+    Output -
+    {
+        flooded: bool
+        empty: bool
+        result: list
+    }
+
+
+def poll_between(article: Nullable string, from: Nullable datetime, until: Nullable datetime, limit: ~ 20):
+    Output -
+    {
+        flooded: bool
+        empty: bool
+        result: list
+    }
+
+
+def keyword(prefix="", limit: ~ 20):
+    Output -
+    {
+        result: string list
+    }
+
+
+-- How Redis can be used ---
+  * Cache-style
+    * LRU
+  * Message-queue for Sub/Pub
