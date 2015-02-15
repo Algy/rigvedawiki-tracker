@@ -1,0 +1,46 @@
+-- Mongo DB schema --
+recentchange
+{
+    article: string, index1
+    gathered_at: datetime, index0(DESC)
+    cmd: string ("modify", "delete", "attach")
+    author: string
+    comment: string
+    time_magic: string
+    edit_num: Nullable int
+    diff: JSON>
+        list of {
+            area: string
+            content: string, in which "\" is escaped, added stub is represented as "\+"<stub>"+\", removed stub as "\-"<stub>"-\", and return-deliminater is "\n". In other hand, basic html escapes are restored (e.g &nbsp -> " ")
+        }
+}
+
+last_recentchange
+{
+    article: string, index0
+    gathtered_at: datetime
+    time_magic: string
+    original_data: reference of recent_change
+}
+
+-- Redis DB Schema --
+"rigveda-keywords": string set
+"rigveda-keyword-prefix": string sorted-set with all of rank of elements being zero
+"rigveda-recentchange-cache": Hash{
+    gathered_at AS rank
+    data IS  <article_name encoded in UTF-8> + "\n" + <recentchange JSON>
+} # LRU-style cache
+
+
+
+-- DB abstraction layer --
+# TODO
+
+
+-- Crawling Task --
+old = collections()
+Task (periodically called)
+    new = collections()
+    fresh_logs = compare(old, new)
+    publish to <channel> (buffered queue)
+    old = new
