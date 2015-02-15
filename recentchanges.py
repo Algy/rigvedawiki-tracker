@@ -264,29 +264,13 @@ def add_keyword(redis, keyword):
     if isinstance(keyword, unicode):
         keyword = keyword.encode("utf-8")
 
-    if not redis.sismember("rigveda-keywords", keyword):
-        with redis.pipeline() as p:
-            p.sadd("rigveda-keywords", keyword)
-            for prefix in _all_prefix(keyword):
-                p.zadd("rigveda-keyword-prefix", 0, prefix)
-            p.execute()
-        return True
-    else:
-        return False
+    return redis.zadd("rigveda-keywords", 0, keyword)
 
 def delete_keyword(redis, keyword):
     if isinstance(keyword, unicode):
         keyword = keyword.encode("utf-8")
 
-    if redis.sismember("rigveda-keywords", keyword):
-        with redis.pipeline() as p:
-            p.srem("rigveda-keywords", keyword)
-            for prefix in _all_prefix(keyword):
-                p.zrem("rigveda-keyword-prefix", prefix)
-            p.execute()
-        return True
-    else:
-        return False
+    return redis.zrem("rigveda-keywords", keyword)
 
 
 def query_prefix(redis, prefix, limit):
@@ -295,7 +279,11 @@ def query_prefix(redis, prefix, limit):
     if isinstance(prefix, unicode):
         prefix = prefix.encode("utf-8")
     inced_prefix = _inc_str(prefix)
-    return redis.zrangebylex("rigveda-keyword-prefix", "[" + prefix, "(" + inced_prefix, num=limit)
+    t = redis.zrangebylex("rigveda-keywords", 
+                          "[" + prefix, "(" + inced_prefix,
+                          start=0,
+                          num=limit)
+    return [x.decode("utf-8") for x in t]
 
 
 def ensure_indices(mongodb):
