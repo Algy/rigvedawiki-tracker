@@ -8,6 +8,7 @@ from flask import Flask, g, jsonify, request, Response
 from redis import StrictRedis
 from pymongo import MongoClient
 from crawl import get_epoch
+from pprint import pprint
 
 from config import POLLING_MAX_LIMIT, MONGODB_HOST, MONGODB_PORT, REDIS_HOST, REDIS_PORT, MONGODB_DATABASE
 
@@ -53,10 +54,7 @@ def pdw():
     article = request.args.get("article", None)
     if article == "__all__":
         article = None
-    if request.args["from"] == "now":
-        _from = get_epoch()
-    else:
-        _from = float(request.args["from"])
+    _from = int(request.args["from"])
     limit = min(int(request.args.get("limit", POLLING_MAX_LIMIT)), POLLING_MAX_LIMIT)
 
     imd = recentchanges.query_recentchanges(g.mongodb,
@@ -70,6 +68,7 @@ def pdw():
     flooded = len(imd) > limit
     if flooded:
         imd.pop()
+    pprint(imd)
     return jsonify(result=imd, flooded=flooded)
 
 
@@ -81,7 +80,7 @@ def puw():
     if request.args["until"] == "now":
         until = get_epoch()
     else:
-        until = float(request.args["until"])
+        until = int(request.args["until"])
     limit = min(int(request.args.get("limit", POLLING_MAX_LIMIT)), POLLING_MAX_LIMIT)
 
     imd = recentchanges.query_recentchanges(g.mongodb,
@@ -95,6 +94,7 @@ def puw():
     flooded = len(imd) > limit
     if flooded:
         imd.pop()
+    pprint(imd)
     return jsonify(result=imd, flooded=flooded)
 
 def exc_to_error(exc):
@@ -177,4 +177,4 @@ if __name__ == "__main__":
         db = client[MONGODB_DATABASE]
         recentchanges.ensure_indices(db)
         anon.ensure_indices(db)
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=True)

@@ -9,7 +9,7 @@ from pymongo import MongoClient
 from redis import StrictRedis
 from recentchanges import add_recentchanges, add_keyword, delete_keyword, dictify_rigveda_log
 from time import sleep, time
-from crawl import crawl_once
+from crawl import crawl_once, get_epoch
 from config import CRAWLING_PERIOD, MONGODB_HOST, MONGODB_PORT, REDIS_HOST, REDIS_PORT, MONGODB_DATABASE
 
 def make_store_fun(mongodb, redis):
@@ -54,7 +54,7 @@ def make_publish_fun(mongodb, redis, pub_redis):
     
 
 
-def serve_forever(mongodb, redis, pub_redis):
+def serve_forever(mongodb, redis, pub_redis, crawl_once=crawl_once):
     old_list = crawl_once(None)
     old_time = time()
 
@@ -72,6 +72,34 @@ def serve_forever(mongodb, redis, pub_redis):
             sleep(0.1)
             new_time = time()
         old_time = new_time
+
+
+def fake_crawl_once(old, store_fun=None, publish_fun=None):
+    import random
+    import time
+    from crawl import RigvedaLogItem
+    if old is None:
+        return []
+
+    idx = 0
+    logs = []
+    while True:
+        diff = "No Diff"
+        time_magic = "00:00 [12:32]"
+        article = raw_input("ARTICLE(%d)>>>"%idx).decode("utf-8")
+        author = raw_input("AUTHOR(%d)>>>"%idx).decode("utf-8")
+        if not article:
+            break
+        log_item = RigvedaLogItem("modify", article, author, time_magic, diff=diff)
+        log_item.gathered_at = get_epoch()
+        logs.append(log_item)
+        idx += 1
+    if store_fun:
+        store_fun(logs)
+    if publish_fun:
+        publish_fun(logs)
+    return [] 
+
 
 if __name__ == "__main__":
     print "Starting crawling..."

@@ -257,7 +257,7 @@ def get_diff(article):
     return result
     
 def get_epoch():
-    return time.time()
+    return int(time.time() * 1000)
 
 
 def crawl_once(old, store_fun=None, publish_fun=None):
