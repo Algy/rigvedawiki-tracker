@@ -8,3 +8,7 @@ MONGODB_PORT = 27017
 
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
+
+GOOGLE_API_KEY = "AIzaSyCksKXPienmrnpoH7iDzUnDMjJy9CtS7eI"
+
+GCM_COLLAPSE_KEY = "article_pub"

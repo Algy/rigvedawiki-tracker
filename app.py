@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import recentchanges
+import anon
 
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, request, Response
 from redis import StrictRedis
 from pymongo import MongoClient
 from crawl import get_epoch
@@ -24,9 +25,9 @@ def teardown_request(exception):
 
 
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return "Hello?"
+    return Response(str(request.headers) + "<br />" + str(request.json))
 
 @app.route("/debug/top", methods=["GET"])
 def debug_recent():
@@ -61,13 +62,15 @@ def pdw():
     imd = recentchanges.query_recentchanges(g.mongodb,
                                             g.redis,
                                             article,
-                                            limit,
+                                            limit + 1,
                                             _from=_from,
                                             until=None,
                                             desc=False,
                                             exclusive=(True, False))
-
-    return jsonify(result=imd)
+    flooded = len(imd) > limit
+    if flooded:
+        imd.pop()
+    return jsonify(result=imd, flooded=flooded)
 
 
 @app.route("/rest/recentchanges/poll_old", methods=["GET"])
@@ -84,12 +87,79 @@ def puw():
     imd = recentchanges.query_recentchanges(g.mongodb,
                                             g.redis,
                                             article,
-                                            limit,
+                                            limit + 1,
                                             _from=None,
                                             until=until,
                                             desc=True,
                                             exclusive=(False, True))
-    return jsonify(result=imd)
+    flooded = len(imd) > limit
+    if flooded:
+        imd.pop()
+    return jsonify(result=imd, flooded=flooded)
+
+def exc_to_error(exc):
+    return jsonify(error=exc.args[0], msg=exc.args[1])
+
+
+def make_error(error, msg, err_code=404):
+    return jsonify(error=error, msg=msg)
+
+
+@app.route("/rest/anon/new", methods=["GET"])
+def new_anon():
+    anon_id = anon.make_anon_account(g.mongodb)
+    return jsonify(anon_id=anon_id)
+
+
+@app.route("/rest/anon/subscribe", methods=["GET"])
+def anon_subscribe():
+    article = request.args["article"]
+    anon_id = request.args["anon_id"]
+
+    try:
+        anon.anon_sub_article(g.mongodb, anon_id, article)
+    except anon.SubscribeError as err:
+        return exc_to_error(err)
+    return jsonify(ok=True)
+
+@app.route("/rest/anon/unsubscribe", methods=["GET"])
+def anon_unsubscribe():
+    article = request.args["article"]
+    anon_id = request.args["anon_id"]
+
+    try:
+        anon.anon_unsub_article(g.mongodb, anon_id, article)
+    except anon.SubscribeError as err:
+        return exc_to_error(err)
+    return jsonify(ok=True)
+
+@app.route("/rest/anon/subs", methods=["GET"])
+def anon_list_subs():
+    anon_id = request.args["anon_id"]
+    return jsonify(result=anon.list_subs(g.mongodb, anon_id))
+
+
+@app.route("/rest/anon/registration_id", methods=["GET"])
+def reg_id():
+    anon_id = request.args["anon_id"]
+    rid = anon.get_registraion_id(g.mongodb, anon_id)
+    return jsonify(result=rid)
+
+
+@app.route("/rest/anon/set_registration_id", methods=["GET"])
+def set_reg_id():
+    anon_id = request.args["anon_id"]
+    registration_id = request.args["registration_id"]
+    if anon.set_gcm(g.mongodb, anon_id, registration_id):
+        return jsonify(ok=True)
+    else:
+        return make_error("failed", "Failed to register the id. Try again.")
+
+@app.route("/debug/rid", methods=["GET"])
+def _adssdfa():
+    article = request.args["article"]
+    return jsonify(result=anon.query_gcm_registration_ids(g.mongodb, article))
+
 
 
 @app.route("/rest/keywords", methods=["GET"])
@@ -98,6 +168,13 @@ def kwds():
     return jsonify(result=recentchanges.query_prefix(g.redis, 
                                                      prefix, 
                                                      limit=10))
+@app.route("/echo", methods=["GET"])
+def safd():
+    return repr(dict(request.args))
 
 if __name__ == "__main__":
+    with MongoClient(host=MONGODB_HOST, port=MONGODB_PORT) as client:
+        db = client[MONGODB_DATABASE]
+        recentchanges.ensure_indices(db)
+        anon.ensure_indices(db)
     app.run(debug=True)

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import time
+import gzip
 
+
+from StringIO import StringIO
 from urllib2 import Request, urlopen, quote
 from bs4 import BeautifulSoup, NavigableString
 from pprint import pprint
@@ -17,10 +20,17 @@ def spoofing_urlopen(url):
         "Accept": "text/html, application/xhtml+xml",
         "Accept-Language": "ko-KR",
         "User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11",
-        "Accept-Encoding": "deflate"
+        "Accept-Encoding": "gzip"
     }
     req = Request(url, headers=headers)
-    return urlopen(req)
+    resp = urlopen(req)
+
+    if resp.headers.get("Content-Encoding", None) == "gzip":
+        compressed_stream = StringIO(resp.read())
+        return gzip.GzipFile(fileobj=compressed_stream).read()
+    else:
+        return resp.read()
+
 
 class BaseLogItem:
     def get_id(self):
@@ -160,7 +170,7 @@ def compare_logs(old_lst, new_lst):
                 yield new_log
 
 def get_recentchanges():
-    src = spoofing_urlopen("http://rigvedawiki.net/r1/wiki.php/RecentChanges").read()
+    src = spoofing_urlopen("http://rigvedawiki.net/r1/wiki.php/RecentChanges")
     return collect_items(src)
 
 
@@ -176,7 +186,7 @@ def get_diff(article):
     if isinstance(article, unicode):
         article = article.encode("utf-8")
     src = spoofing_urlopen(
-            "http://rigvedawiki.net/r1/wiki.php/%s?action=diff"%quote(article)).read()
+            "http://rigvedawiki.net/r1/wiki.php/%s?action=diff"%quote(article))
     soup = BeautifulSoup(src)
     t = soup.select("div.fancyDiff")
     if len(t) == 0:
