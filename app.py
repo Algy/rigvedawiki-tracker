@@ -200,9 +200,17 @@ def _adssdfa():
 @app.route("/rest/keywords", methods=["GET"])
 def kwds():
     prefix = request.args["prefix"]
-    return jsonify(result=recentchanges.query_prefix(g.redis, 
-                                                     prefix, 
-                                                     limit=10))
+    limit = int(request.args.get("limit", 10))
+    candidiates = recentchanges.query_prefix(g.redis, prefix, limit=limit + 1)
+
+    if len(candidiates) > limit:
+        flooded = True
+        candidiates.pop()
+    else:
+        flooded = False
+    
+    return jsonify(result=candidiates, flooded=flooded)
+
 @app.route("/echo", methods=["GET"])
 def safd():
     return repr(dict(request.args))
