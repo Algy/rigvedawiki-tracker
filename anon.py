@@ -20,29 +20,35 @@ def make_anon_account(mongodb):
                               "created_at": created_at})
     return anon_id
 
+def has_anon(mongodb, anon_id):
+    z = mongodb.anon_user.find({"anon_id": anon_id}).limit(1).count(True)
+    if z:
+        return True
+    else:
+        return False
 
 def anon_sub_article(mongodb, anon_id, article):
     d = mongodb.anon_user.find_one({"anon_id": anon_id})
     if d is None:
-        raise SubscribeError("no_such_anon_id", "{0} is invalid id".format(anon_id))
+        raise SubscribeError("no_such_anon_id", "{0} is invalid id".format(anon_id), 404)
     try:
         mongodb.assoc_anon_sub.insert({"anon_id": anon_id,
                                        "article": article})
     except DuplicateKeyError:
         raise SubscribeError(
             "already_subscribed", 
-            "article %s is already subscribed"%article)
+            "article %s is already subscribed"%article, 404)
 
 
 def anon_unsub_article(mongodb, anon_id, article):
     d = mongodb.anon_user.find_one({"anon_id": anon_id})
     if d is None:
-        raise SubscribeError("no_such_anon_id", "{0} is invalid id".format(anon_id))
+        raise SubscribeError("no_such_anon_id", "{0} is invalid id".format(anon_id), 404)
     res = mongodb.assoc_anon_sub.remove({"anon_id": anon_id,
                                          "article": article})
     if res is None:
         raise SubscribeError("no_such_article", 
-                             "{0} is not subscribed for {1}".format(article, anon_id))
+                             "{0} is not subscribed for {1}".format(article, anon_id), 404)
 
 
 def change_registraton_id(mongodb, old_r_id, new_r_id):
@@ -69,17 +75,15 @@ def remove_registration_id(mongodb, registration_id):
     
 
 def set_gcm(mongodb, anon_id, registration_id):
+    if not has_anon(mongodb, anon_id):
+        raise SubscribeError("no_such_anon_id", "", 404)
     res = mongodb.gcm_push.update(
         {"anon_id": anon_id},
         {"anon_id": anon_id, 
          "registration_id": registration_id,
          "registered_at": datetime.utcnow()},
         upsert=True)
-    if res is None:
-        return False
-    else:
-        return True
-
+    return res is not None
 
 
 def query_gcm_registration_ids(mongodb, article):
